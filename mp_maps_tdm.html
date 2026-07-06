@@ -246,6 +246,45 @@
       letter-spacing:.02em;
     }
 
+    .option-row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .check-control{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--ui-line);
+      background: var(--ui-bg);
+      color: var(--ui-text);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:12px;
+      font-weight:800;
+      cursor:pointer;
+      user-select:none;
+      backdrop-filter: blur(4px);
+      box-shadow:0 8px 20px rgba(0,0,0,.2);
+    }
+
+    .check-control input{
+      width:16px;
+      height:16px;
+      margin:0;
+      cursor:pointer;
+      accent-color: var(--ui-accent);
+    }
+
+    .status-pill.is-spinning{
+      border-color: rgba(255,211,77,.55);
+      color: var(--ui-text);
+      background: rgba(255,211,77,.12);
+    }
+
     /* Hide UI mode for clean OBS */
     .overlay.hide-ui .controls{
       opacity:0;
@@ -300,6 +339,12 @@
       <div class="status-pill" id="statusPill">
         Map: <strong id="mapNameText">—</strong>
       </div>
+      <div class="option-row">
+        <label class="check-control" title="When enabled, pressing a map number spins fast-to-slow before landing on the selected map.">
+          <input type="checkbox" id="autoSpinToggle" />
+          <span>Auto Spin</span>
+        </label>
+      </div>
       <div class="control-row" id="numberButtons"></div>
     </div>
   </div>
@@ -330,9 +375,15 @@
     const cardsEl = document.getElementById("cards");
     const numberButtonsEl = document.getElementById("numberButtons");
     const mapNameText = document.getElementById("mapNameText");
+    const statusPill = document.getElementById("statusPill");
+    const autoSpinToggle = document.getElementById("autoSpinToggle");
 
     let current = 0;
     let cardNodes = [];
+    let spinTimer = null;
+    let spinRunId = 0;
+    let isSpinning = false;
+    const AUTO_SPIN_STORAGE_KEY = `${location.pathname}:autoSpin`;
 
     function escapeHtml(str){
       return String(str).replace(/[&<>"']/g, s => ({
@@ -409,6 +460,92 @@
       return card;
     }
 
+    function cancelSpin(){
+      if (spinTimer) clearTimeout(spinTimer);
+      spinTimer = null;
+      spinRunId++;
+      isSpinning = false;
+      statusPill.classList.remove("is-spinning");
+      if (MAPS[current]) {
+        mapNameText.textContent = MAPS[current].name;
+      }
+    }
+
+    function isAutoSpinEnabled(){
+      return autoSpinToggle && autoSpinToggle.checked;
+    }
+
+    function loadAutoSpinSetting(){
+      if (!autoSpinToggle) return;
+      try {
+        autoSpinToggle.checked = localStorage.getItem(AUTO_SPIN_STORAGE_KEY) === "1";
+      } catch (err) {
+        // localStorage may be unavailable in some browser-source contexts
+      }
+    }
+
+    function saveAutoSpinSetting(){
+      if (!autoSpinToggle) return;
+      try {
+        localStorage.setItem(AUTO_SPIN_STORAGE_KEY, autoSpinToggle.checked ? "1" : "0");
+      } catch (err) {
+        // localStorage may be unavailable in some browser-source contexts
+      }
+    }
+
+    function pickNumber(index){
+      if (isAutoSpinEnabled()) spinTo(index);
+      else goTo(index);
+    }
+
+    function finishSpin(runId, target){
+      if (runId !== spinRunId) return;
+      spinTimer = null;
+      isSpinning = false;
+      current = target;
+      render();
+      statusPill.classList.remove("is-spinning");
+    }
+
+    function spinTo(targetIndex){
+      const len = MAPS.length;
+      if (!len) return;
+
+      const target = ((targetIndex % len) + len) % len;
+      cancelSpin();
+
+      const runId = ++spinRunId;
+      const distance = (target - current + len) % len;
+      const cycles = len <= 3 ? 3 : 2;
+      const totalSteps = (cycles * len) + distance;
+      const minDelay = 55;
+      const maxDelay = 520;
+
+      let step = 0;
+      isSpinning = true;
+      statusPill.classList.add("is-spinning");
+      mapNameText.textContent = `Spinning to ${MAPS[target].name}…`;
+
+      function tick(){
+        if (runId !== spinRunId) return;
+
+        current = (current + 1) % len;
+        render();
+        step++;
+
+        if (step >= totalSteps){
+          finishSpin(runId, target);
+          return;
+        }
+
+        const progress = step / totalSteps;
+        const delay = Math.round(minDelay + (maxDelay - minDelay) * progress * progress);
+        spinTimer = setTimeout(tick, delay);
+      }
+
+      spinTimer = setTimeout(tick, 35);
+    }
+
     function buildCarousel(){
       cardsEl.innerHTML = "";
       numberButtonsEl.innerHTML = "";
@@ -422,7 +559,7 @@
         const btn = document.createElement("button");
         btn.textContent = (i < 9) ? String(i + 1) : "10";
         btn.title = `Go to ${map.name}`;
-        btn.addEventListener("click", () => goTo(i));
+        btn.addEventListener("click", () => pickNumber(i));
         numberButtonsEl.appendChild(btn);
       });
 
@@ -454,7 +591,9 @@
         else card.classList.add("is-hidden-right");
       });
 
-      mapNameText.textContent = MAPS[current].name;
+      if (!isSpinning) {
+        mapNameText.textContent = MAPS[current].name;
+      }
 
       [...numberButtonsEl.children].forEach((btn, i) => {
         btn.classList.toggle("active", i === current);
@@ -464,6 +603,7 @@
     function goTo(index){
       const len = MAPS.length;
       if (!len) return;
+      if (isSpinning) cancelSpin();
       current = ((index % len) + len) % len;
       render();
     }
@@ -496,6 +636,10 @@
     document.getElementById("fsBtn").addEventListener("click", toggleFullscreen);
     document.getElementById("dashboardBtn").addEventListener("click", goToDashboard);
 
+    if (autoSpinToggle) {
+      autoSpinToggle.addEventListener("change", saveAutoSpinSetting);
+    }
+
     // Keyboard controls
     window.addEventListener("keydown", (e) => {
       if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
@@ -504,10 +648,10 @@
       else if (e.key === "ArrowRight") next();
       else if (/^[1-9]$/.test(e.key)) {
         const idx = Number(e.key) - 1;
-        if (idx < MAPS.length) goTo(idx);
+        if (idx < MAPS.length) pickNumber(idx);
       }
       else if (e.key === "0") {
-        if (MAPS.length >= 10) goTo(9);
+        if (MAPS.length >= 10) pickNumber(9);
       }
       else if (e.key.toLowerCase() === "h") toggleUI();
       else if (e.key.toLowerCase() === "f") toggleFullscreen();
@@ -538,6 +682,7 @@
       }
     }
 
+    loadAutoSpinSetting();
     buildCarousel();
   </script>
 </body>
