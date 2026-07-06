@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CODM Map CTRL</title>
+  <title>CODM Map TDM</title>
   <style>
     :root{
       --green-screen: #00ff00; /* OBS chroma key */
@@ -306,7 +306,7 @@
 
   <script>
     /*
-      CODM Map Carousel Overlay (Coverflow Style)
+      CODM Team Death Match Map Carousel Overlay (Coverflow Style)
       - Pure green background for OBS chroma key
       - Keyboard + number buttons
       - D shortcut / button returns to dashboard
@@ -317,10 +317,13 @@
     let DASHBOARD_URL = "mp_maps_selector.html";
 
     const MAPS = [
-      // ⚠️ Check exact filenames and case (GitHub Pages / OBS browser source is case-sensitive)
-      { name: "Crossroad Strike",  image: "maps/Crossroad strike.png" },
-      { name: "Raid",              image: "maps/Raid.png" },
-      { name: "Standoff",          image: "maps/Standoff.png" },
+      // Team Death Match map pool
+      // Check exact filenames and case (GitHub Pages / OBS browser source is case-sensitive)
+      { name: "Nuketown Russia", image: "maps/Nuketown_Russia.png" },
+      { name: "Killhouse",       image: "maps/Killhouse.png" },
+      { name: "Rust",            image: "maps/Rust.png" },
+      { name: "Shipment",        image: "maps/Shipment.png" },
+      { name: "Cage",            image: "maps/Cage.png" },
     ];
 
     const overlay = document.getElementById("overlay");
@@ -539,9 +542,3 @@
   </script>
 </body>
 </html>
-    
-    
-
-
-    
-

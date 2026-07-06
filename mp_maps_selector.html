@@ -263,7 +263,7 @@
       <div class="brand-badge">M</div>
       <div class="brand-text">
         <h1>CODM Maps Dashboard</h1>
-        <p>Switch map overlays fast (HP / SND / CTRL)</p>
+        <p>Switch map overlays fast (HP / SND / CTRL / TDM)</p>
       </div>
     </div>
 
@@ -271,6 +271,7 @@
       <button class="mode-btn" data-view="hp" title="Shortcut: 1">1 • HP</button>
       <button class="mode-btn" data-view="snd" title="Shortcut: 2">2 • SND</button>
       <button class="mode-btn" data-view="ctrl" title="Shortcut: 3">3 • CTRL</button>
+      <button class="mode-btn" data-view="tdm" title="Shortcut: 4">4 • TDM</button>
     </div>
 
     <div class="actions">
@@ -287,7 +288,7 @@
         <div class="value" id="activeUrlText">—</div>
       </div>
       <div class="hotkeys">
-        Hotkeys: <strong>1</strong>=HP • <strong>2</strong>=SND • <strong>3</strong>=CTRL • <strong>R</strong>=Reload • <strong>F</strong>=Fullscreen
+        Hotkeys: <strong>1</strong>=HP • <strong>2</strong>=SND • <strong>3</strong>=CTRL • <strong>4</strong>=TDM • <strong>R</strong>=Reload • <strong>F</strong>=Fullscreen
       </div>
     </section>
 
@@ -299,15 +300,17 @@
 
   <script>
     const PAGES = {
-      hp:   "https://misai-my.github.io/codm-esports-v0/mp_maps_hp.html",
-      snd:  "https://misai-my.github.io/codm-esports-v0/mp_maps_snd.html",
-      ctrl: "https://misai-my.github.io/codm-esports-v0/mp_maps_ctrl.html",
+      hp:   "mp_maps_hp.html",
+      snd:  "mp_maps_snd.html",
+      ctrl: "mp_maps_ctrl.html",
+      tdm:  "mp_maps_tdm.html",
     };
 
     const LABELS = {
       hp: "HP",
       snd: "SND",
       ctrl: "CTRL",
+      tdm: "TDM",
     };
 
     const frame = document.getElementById("previewFrame");
@@ -379,7 +382,7 @@
       // Show instantly on forced reload, delayed otherwise
       showLoading(forceFresh);
 
-      const url = new URL(PAGES[view]);
+      const url = new URL(PAGES[view], window.location.href);
 
       // ✅ Only bust cache on manual reload
       if (forceFresh) {
@@ -422,7 +425,7 @@
     document.getElementById("reloadBtn").addEventListener("click", reloadCurrent);
 
     document.getElementById("openNewTabBtn").addEventListener("click", () => {
-      window.open(PAGES[currentView], "_blank", "noopener,noreferrer");
+      window.open(new URL(PAGES[currentView], window.location.href).toString(), "_blank", "noopener,noreferrer");
     });
 
     document.getElementById("fullscreenBtn").addEventListener("click", toggleFullscreen);
@@ -451,13 +454,14 @@
       if (key === "1") loadView("hp");
       else if (key === "2") loadView("snd");
       else if (key === "3") loadView("ctrl");
+      else if (key === "4") loadView("tdm");
       else if (key === "r") reloadCurrent();
       else if (key === "f") toggleFullscreen();
 
       // ✅ Arrow keys intentionally removed so HP/SND/CTRL pages can use them
     });
 
-    // Initial view from URL (?view=hp|snd|ctrl)
+    // Initial view from URL (?view=hp|snd|ctrl|tdm)
     const params = new URLSearchParams(location.search);
     const initialView = (params.get("view") || "hp").toLowerCase();
     const safeInitial = PAGES[initialView] ? initialView : "hp";
