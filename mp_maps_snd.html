@@ -15,6 +15,7 @@
 
       --card-radius: 14px;
       --card-shadow: 0 16px 40px rgba(0,0,0,.35);
+      --carousel-lift: -54px;
     }
 
     *{ box-sizing:border-box; }
@@ -57,7 +58,7 @@
     .map-card{
       position:absolute;
       left:50%;
-      top:50%;
+      top:calc(50% + var(--carousel-lift));
       width:min(50vw, 920px);
       aspect-ratio: 16 / 9;
       transform: translate(-50%, -50%) scale(.6);
@@ -329,6 +330,7 @@
 
     /* Small screens */
     @media (max-width: 900px){
+      :root{ --carousel-lift: -42px; }
       .map-card.is-prev{
         transform: translate(-50%, -50%) translateX(calc(-1 * min(52vw, 520px))) scale(.38);
       }
@@ -554,10 +556,10 @@
 
       const runId = ++spinRunId;
       const distance = (target - current + len) % len;
-      const cycles = len <= 3 ? 3 : 2;
+      const cycles = len <= 3 ? 5 : 4;
       const totalSteps = (cycles * len) + distance;
-      const minDelay = 55;
-      const maxDelay = 520;
+      const minDelay = 65;
+      const maxDelay = 820;
 
       let step = 0;
       isSpinning = true;
@@ -581,7 +583,7 @@
         spinTimer = setTimeout(tick, delay);
       }
 
-      spinTimer = setTimeout(tick, 35);
+      spinTimer = setTimeout(tick, 45);
     }
 
     function buildCarousel(){
