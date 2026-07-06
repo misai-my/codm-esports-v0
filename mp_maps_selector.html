@@ -263,7 +263,7 @@
       <div class="brand-badge">M</div>
       <div class="brand-text">
         <h1>CODM Maps Dashboard</h1>
-        <p>Switch map overlays fast (HP / SND / CTRL / TDM)</p>
+        <p>Switch map overlays fast (HP / SND / CTRL / TDM / SND 1V1)</p>
       </div>
     </div>
 
@@ -272,6 +272,7 @@
       <button class="mode-btn" data-view="snd" title="Shortcut: 2">2 • SND</button>
       <button class="mode-btn" data-view="ctrl" title="Shortcut: 3">3 • CTRL</button>
       <button class="mode-btn" data-view="tdm" title="Shortcut: 4">4 • TDM</button>
+      <button class="mode-btn" data-view="snd1v1" title="Shortcut: 5">5 • SND 1V1</button>
     </div>
 
     <div class="actions">
@@ -288,7 +289,7 @@
         <div class="value" id="activeUrlText">—</div>
       </div>
       <div class="hotkeys">
-        Hotkeys: <strong>1</strong>=HP • <strong>2</strong>=SND • <strong>3</strong>=CTRL • <strong>4</strong>=TDM • <strong>R</strong>=Reload • <strong>F</strong>=Fullscreen
+        Hotkeys: <strong>1</strong>=HP • <strong>2</strong>=SND • <strong>3</strong>=CTRL • <strong>4</strong>=TDM • <strong>5</strong>=SND 1V1 • <strong>R</strong>=Reload • <strong>F</strong>=Fullscreen
       </div>
     </section>
 
@@ -304,6 +305,7 @@
       snd:  "mp_maps_snd.html",
       ctrl: "mp_maps_ctrl.html",
       tdm:  "mp_maps_tdm.html",
+      snd1v1: "mp_maps_snd_1v1.html",
     };
 
     const LABELS = {
@@ -311,6 +313,7 @@
       snd: "SND",
       ctrl: "CTRL",
       tdm: "TDM",
+      snd1v1: "SND 1V1",
     };
 
     const frame = document.getElementById("previewFrame");
@@ -455,13 +458,14 @@
       else if (key === "2") loadView("snd");
       else if (key === "3") loadView("ctrl");
       else if (key === "4") loadView("tdm");
+      else if (key === "5") loadView("snd1v1");
       else if (key === "r") reloadCurrent();
       else if (key === "f") toggleFullscreen();
 
-      // ✅ Arrow keys intentionally removed so HP/SND/CTRL pages can use them
+      // ✅ Arrow keys intentionally removed so HP/SND/CTRL/TDM/SND 1V1 pages can use them
     });
 
-    // Initial view from URL (?view=hp|snd|ctrl|tdm)
+    // Initial view from URL (?view=hp|snd|ctrl|tdm|snd1v1)
     const params = new URLSearchParams(location.search);
     const initialView = (params.get("view") || "hp").toLowerCase();
     const safeInitial = PAGES[initialView] ? initialView : "hp";

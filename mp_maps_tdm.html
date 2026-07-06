@@ -285,6 +285,42 @@
       background: rgba(255,211,77,.12);
     }
 
+
+    .map-list{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+      gap:6px;
+      max-width:min(94vw, 1080px);
+    }
+
+    .map-list-item{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      min-width:auto;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      line-height:1;
+      white-space:nowrap;
+      text-transform:none;
+    }
+
+    .map-list-item .map-list-no{
+      color:var(--ui-accent);
+      font-weight:950;
+      letter-spacing:.02em;
+    }
+
+    .map-list-item.active{
+      border-color: rgba(255,211,77,.62);
+      background: rgba(255,211,77,.18);
+      color:#fff;
+    }
+
     /* Hide UI mode for clean OBS */
     .overlay.hide-ui .controls{
       opacity:0;
@@ -346,6 +382,7 @@
         </label>
       </div>
       <div class="control-row" id="numberButtons"></div>
+      <div class="map-list" id="mapList" aria-label="Map list with numbers"></div>
     </div>
   </div>
 
@@ -374,6 +411,7 @@
     const overlay = document.getElementById("overlay");
     const cardsEl = document.getElementById("cards");
     const numberButtonsEl = document.getElementById("numberButtons");
+    const mapListEl = document.getElementById("mapList");
     const mapNameText = document.getElementById("mapNameText");
     const statusPill = document.getElementById("statusPill");
     const autoSpinToggle = document.getElementById("autoSpinToggle");
@@ -449,12 +487,13 @@
       card.appendChild(titleOverlay);
 
       // Click behavior:
-      // - clicking side previews jumps to them
-      // - clicking center advances to next
+      // - clicking any visible map uses the same picker as the number buttons
+      // - with Auto Spin enabled, every map click spins fast-to-slow before landing
+      // - clicking the center card advances to the next map
       card.addEventListener("click", () => {
         const idx = Number(card.dataset.index);
-        if (idx === current) next();
-        else goTo(idx);
+        if (idx === current) pickNumber(current + 1);
+        else pickNumber(idx);
       });
 
       return card;
@@ -549,6 +588,7 @@
     function buildCarousel(){
       cardsEl.innerHTML = "";
       numberButtonsEl.innerHTML = "";
+      mapListEl.innerHTML = "";
       cardNodes = MAPS.map((map, i) => {
         const card = createCard(map, i);
         cardsEl.appendChild(card);
@@ -561,6 +601,14 @@
         btn.title = `Go to ${map.name}`;
         btn.addEventListener("click", () => pickNumber(i));
         numberButtonsEl.appendChild(btn);
+
+        const listBtn = document.createElement("button");
+        listBtn.className = "map-list-item";
+        listBtn.type = "button";
+        listBtn.title = `Map ${i + 1}: ${map.name}`;
+        listBtn.innerHTML = `<span class="map-list-no">${i + 1}</span><span>${escapeHtml(map.name)}</span>`;
+        listBtn.addEventListener("click", () => pickNumber(i));
+        mapListEl.appendChild(listBtn);
       });
 
       render();
@@ -598,6 +646,10 @@
       [...numberButtonsEl.children].forEach((btn, i) => {
         btn.classList.toggle("active", i === current);
       });
+
+      [...mapListEl.children].forEach((btn, i) => {
+        btn.classList.toggle("active", i === current);
+      });
     }
 
     function goTo(index){
@@ -608,8 +660,15 @@
       render();
     }
 
-    function next(){ goTo(current + 1); }
-    function prev(){ goTo(current - 1); }
+    function next(){
+      if (isAutoSpinEnabled()) spinTo(current + 1);
+      else goTo(current + 1);
+    }
+
+    function prev(){
+      if (isAutoSpinEnabled()) spinTo(current - 1);
+      else goTo(current - 1);
+    }
 
     function toggleUI(){
       overlay.classList.toggle("hide-ui");

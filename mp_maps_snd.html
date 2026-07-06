@@ -246,6 +246,81 @@
       letter-spacing:.02em;
     }
 
+    .option-row{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+    }
+
+    .check-control{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid var(--ui-line);
+      background: var(--ui-bg);
+      color: var(--ui-text);
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:12px;
+      font-weight:800;
+      cursor:pointer;
+      user-select:none;
+      backdrop-filter: blur(4px);
+      box-shadow:0 8px 20px rgba(0,0,0,.2);
+    }
+
+    .check-control input{
+      width:16px;
+      height:16px;
+      margin:0;
+      cursor:pointer;
+      accent-color: var(--ui-accent);
+    }
+
+    .status-pill.is-spinning{
+      border-color: rgba(255,211,77,.55);
+      color: var(--ui-text);
+      background: rgba(255,211,77,.12);
+    }
+
+
+    .map-list{
+      display:flex;
+      flex-wrap:wrap;
+      justify-content:center;
+      align-items:center;
+      gap:6px;
+      max-width:min(94vw, 1080px);
+    }
+
+    .map-list-item{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      min-width:auto;
+      padding:7px 10px;
+      border-radius:999px;
+      font-size:12px;
+      font-weight:800;
+      line-height:1;
+      white-space:nowrap;
+      text-transform:none;
+    }
+
+    .map-list-item .map-list-no{
+      color:var(--ui-accent);
+      font-weight:950;
+      letter-spacing:.02em;
+    }
+
+    .map-list-item.active{
+      border-color: rgba(255,211,77,.62);
+      background: rgba(255,211,77,.18);
+      color:#fff;
+    }
+
     /* Hide UI mode for clean OBS */
     .overlay.hide-ui .controls{
       opacity:0;
@@ -300,7 +375,14 @@
       <div class="status-pill" id="statusPill">
         Map: <strong id="mapNameText">—</strong>
       </div>
+      <div class="option-row">
+        <label class="check-control" title="When enabled, pressing a map number spins fast-to-slow before landing on the selected map.">
+          <input type="checkbox" id="autoSpinToggle" />
+          <span>Auto Spin</span>
+        </label>
+      </div>
       <div class="control-row" id="numberButtons"></div>
+      <div class="map-list" id="mapList" aria-label="Map list with numbers"></div>
     </div>
   </div>
 
@@ -328,10 +410,17 @@
     const overlay = document.getElementById("overlay");
     const cardsEl = document.getElementById("cards");
     const numberButtonsEl = document.getElementById("numberButtons");
+    const mapListEl = document.getElementById("mapList");
     const mapNameText = document.getElementById("mapNameText");
+    const statusPill = document.getElementById("statusPill");
+    const autoSpinToggle = document.getElementById("autoSpinToggle");
 
     let current = 0;
     let cardNodes = [];
+    let spinTimer = null;
+    let spinRunId = 0;
+    let isSpinning = false;
+    const AUTO_SPIN_STORAGE_KEY = `${location.pathname}:autoSpin`;
 
     function escapeHtml(str){
       return String(str).replace(/[&<>"']/g, s => ({
@@ -397,20 +486,108 @@
       card.appendChild(titleOverlay);
 
       // Click behavior:
-      // - clicking side previews jumps to them
-      // - clicking center advances to next
+      // - clicking any visible map uses the same picker as the number buttons
+      // - with Auto Spin enabled, every map click spins fast-to-slow before landing
+      // - clicking the center card advances to the next map
       card.addEventListener("click", () => {
         const idx = Number(card.dataset.index);
-        if (idx === current) next();
-        else goTo(idx);
+        if (idx === current) pickNumber(current + 1);
+        else pickNumber(idx);
       });
 
       return card;
     }
 
+    function cancelSpin(){
+      if (spinTimer) clearTimeout(spinTimer);
+      spinTimer = null;
+      spinRunId++;
+      isSpinning = false;
+      statusPill.classList.remove("is-spinning");
+      if (MAPS[current]) {
+        mapNameText.textContent = MAPS[current].name;
+      }
+    }
+
+    function isAutoSpinEnabled(){
+      return autoSpinToggle && autoSpinToggle.checked;
+    }
+
+    function loadAutoSpinSetting(){
+      if (!autoSpinToggle) return;
+      try {
+        autoSpinToggle.checked = localStorage.getItem(AUTO_SPIN_STORAGE_KEY) === "1";
+      } catch (err) {
+        // localStorage may be unavailable in some browser-source contexts
+      }
+    }
+
+    function saveAutoSpinSetting(){
+      if (!autoSpinToggle) return;
+      try {
+        localStorage.setItem(AUTO_SPIN_STORAGE_KEY, autoSpinToggle.checked ? "1" : "0");
+      } catch (err) {
+        // localStorage may be unavailable in some browser-source contexts
+      }
+    }
+
+    function pickNumber(index){
+      if (isAutoSpinEnabled()) spinTo(index);
+      else goTo(index);
+    }
+
+    function finishSpin(runId, target){
+      if (runId !== spinRunId) return;
+      spinTimer = null;
+      isSpinning = false;
+      current = target;
+      render();
+      statusPill.classList.remove("is-spinning");
+    }
+
+    function spinTo(targetIndex){
+      const len = MAPS.length;
+      if (!len) return;
+
+      const target = ((targetIndex % len) + len) % len;
+      cancelSpin();
+
+      const runId = ++spinRunId;
+      const distance = (target - current + len) % len;
+      const cycles = len <= 3 ? 3 : 2;
+      const totalSteps = (cycles * len) + distance;
+      const minDelay = 55;
+      const maxDelay = 520;
+
+      let step = 0;
+      isSpinning = true;
+      statusPill.classList.add("is-spinning");
+      mapNameText.textContent = `Spinning to ${MAPS[target].name}…`;
+
+      function tick(){
+        if (runId !== spinRunId) return;
+
+        current = (current + 1) % len;
+        render();
+        step++;
+
+        if (step >= totalSteps){
+          finishSpin(runId, target);
+          return;
+        }
+
+        const progress = step / totalSteps;
+        const delay = Math.round(minDelay + (maxDelay - minDelay) * progress * progress);
+        spinTimer = setTimeout(tick, delay);
+      }
+
+      spinTimer = setTimeout(tick, 35);
+    }
+
     function buildCarousel(){
       cardsEl.innerHTML = "";
       numberButtonsEl.innerHTML = "";
+      mapListEl.innerHTML = "";
       cardNodes = MAPS.map((map, i) => {
         const card = createCard(map, i);
         cardsEl.appendChild(card);
@@ -421,8 +598,16 @@
         const btn = document.createElement("button");
         btn.textContent = (i < 9) ? String(i + 1) : "10";
         btn.title = `Go to ${map.name}`;
-        btn.addEventListener("click", () => goTo(i));
+        btn.addEventListener("click", () => pickNumber(i));
         numberButtonsEl.appendChild(btn);
+
+        const listBtn = document.createElement("button");
+        listBtn.className = "map-list-item";
+        listBtn.type = "button";
+        listBtn.title = `Map ${i + 1}: ${map.name}`;
+        listBtn.innerHTML = `<span class="map-list-no">${i + 1}</span><span>${escapeHtml(map.name)}</span>`;
+        listBtn.addEventListener("click", () => pickNumber(i));
+        mapListEl.appendChild(listBtn);
       });
 
       render();
@@ -453,9 +638,15 @@
         else card.classList.add("is-hidden-right");
       });
 
-      mapNameText.textContent = MAPS[current].name;
+      if (!isSpinning) {
+        mapNameText.textContent = MAPS[current].name;
+      }
 
       [...numberButtonsEl.children].forEach((btn, i) => {
+        btn.classList.toggle("active", i === current);
+      });
+
+      [...mapListEl.children].forEach((btn, i) => {
         btn.classList.toggle("active", i === current);
       });
     }
@@ -463,12 +654,20 @@
     function goTo(index){
       const len = MAPS.length;
       if (!len) return;
+      if (isSpinning) cancelSpin();
       current = ((index % len) + len) % len;
       render();
     }
 
-    function next(){ goTo(current + 1); }
-    function prev(){ goTo(current - 1); }
+    function next(){
+      if (isAutoSpinEnabled()) spinTo(current + 1);
+      else goTo(current + 1);
+    }
+
+    function prev(){
+      if (isAutoSpinEnabled()) spinTo(current - 1);
+      else goTo(current - 1);
+    }
 
     function toggleUI(){
       overlay.classList.toggle("hide-ui");
@@ -495,6 +694,10 @@
     document.getElementById("fsBtn").addEventListener("click", toggleFullscreen);
     document.getElementById("dashboardBtn").addEventListener("click", goToDashboard);
 
+    if (autoSpinToggle) {
+      autoSpinToggle.addEventListener("change", saveAutoSpinSetting);
+    }
+
     // Keyboard controls
     window.addEventListener("keydown", (e) => {
       if (["ArrowLeft", "ArrowRight", " "].includes(e.key)) e.preventDefault();
@@ -503,10 +706,10 @@
       else if (e.key === "ArrowRight") next();
       else if (/^[1-9]$/.test(e.key)) {
         const idx = Number(e.key) - 1;
-        if (idx < MAPS.length) goTo(idx);
+        if (idx < MAPS.length) pickNumber(idx);
       }
       else if (e.key === "0") {
-        if (MAPS.length >= 10) goTo(9);
+        if (MAPS.length >= 10) pickNumber(9);
       }
       else if (e.key.toLowerCase() === "h") toggleUI();
       else if (e.key.toLowerCase() === "f") toggleFullscreen();
@@ -537,6 +740,7 @@
       }
     }
 
+    loadAutoSpinSetting();
     buildCarousel();
   </script>
 </body>
